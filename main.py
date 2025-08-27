@@ -1,5 +1,5 @@
-# second version of the code at the top, fixed some issues, see if it works now
-!pip install -q openpyxl gdown timm opencv-python albumentations
+# Prostate Cancer Classification with Multi-Task Learning
+# Enhanced pipeline with multi-label classification and cribriform detection
 
 import os
 import sys
@@ -25,6 +25,7 @@ from collections import defaultdict
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 import random
+import gdown
 import gc
 
 try:
@@ -38,7 +39,10 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 GDRIVE_ZIP_LINK = "1Jiz3Ij2NbbhGml2jce31gboJwDDct73P"
 LOCAL_ZIP_NAME = "SICAPv2.zip"
 
-!gdown --id {GDRIVE_ZIP_LINK} -O {LOCAL_ZIP_NAME}
+# Download dataset if not already present
+if not os.path.exists(LOCAL_ZIP_NAME):
+    print("Downloading SICAPv2 dataset...")
+    gdown.download(f"https://drive.google.com/uc?id={GDRIVE_ZIP_LINK}", LOCAL_ZIP_NAME, quiet=False)
 
 if os.path.exists("SICAPv2"):
     shutil.rmtree("SICAPv2")
@@ -46,11 +50,11 @@ os.makedirs("SICAPv2", exist_ok=True)
 with zipfile.ZipFile(LOCAL_ZIP_NAME, 'r') as zip_ref:
     zip_ref.extractall("SICAPv2")
 
-BASE_DIR = "/content/SICAPv2/SICAPv2"
+BASE_DIR = "SICAPv2/SICAPv2"
 IMAGES_FOLDER = os.path.join(BASE_DIR, "images")
 MASKS_FOLDER = os.path.join(BASE_DIR, "masks")
 PARTITION_DIR = os.path.join(BASE_DIR, "partition")
-SAVE_DIR = "/content/SICAPv2_results"
+SAVE_DIR = "SICAPv2_results"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
 TEST_DIR = os.path.join(PARTITION_DIR, "Test")
