@@ -25,7 +25,6 @@ from collections import defaultdict
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 import random
-import gdown
 import gc
 
 try:
@@ -36,21 +35,8 @@ except:
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-GDRIVE_ZIP_LINK = "1Jiz3Ij2NbbhGml2jce31gboJwDDct73P"
-LOCAL_ZIP_NAME = "SICAPv2.zip"
-
-# Download dataset if not already present
-if not os.path.exists(LOCAL_ZIP_NAME):
-    print("Downloading SICAPv2 dataset...")
-    gdown.download(f"https://drive.google.com/uc?id={GDRIVE_ZIP_LINK}", LOCAL_ZIP_NAME, quiet=False)
-
-if os.path.exists("SICAPv2"):
-    shutil.rmtree("SICAPv2")
-os.makedirs("SICAPv2", exist_ok=True)
-with zipfile.ZipFile(LOCAL_ZIP_NAME, 'r') as zip_ref:
-    zip_ref.extractall("SICAPv2")
-
-BASE_DIR = "SICAPv2/SICAPv2"
+# Use local data directory
+BASE_DIR = "data/SICAPv2"
 IMAGES_FOLDER = os.path.join(BASE_DIR, "images")
 MASKS_FOLDER = os.path.join(BASE_DIR, "masks")
 PARTITION_DIR = os.path.join(BASE_DIR, "partition")

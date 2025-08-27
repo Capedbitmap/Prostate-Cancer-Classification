@@ -20,9 +20,6 @@ seaborn>=0.11.0
 # Model utilities
 timm>=0.6.0
 
-# Data download
-gdown>=4.0.0
-
 # Progress tracking (optional)
 tqdm>=4.60.0
 
