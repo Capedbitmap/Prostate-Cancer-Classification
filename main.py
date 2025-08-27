@@ -64,8 +64,14 @@ try:
 except:
     USE_AMP = False
 
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+if torch.backends.mps.is_available():
+    DEVICE = torch.device("mps")
+elif torch.cuda.is_available():
+    DEVICE = torch.device("cuda")
+else:
+    DEVICE = torch.device("cpu")
 
+print(f"Using device: {DEVICE}")
 # Use local data directory
 BASE_DIR = "data/SICAPv2"
 IMAGES_FOLDER = os.path.join(BASE_DIR, "images")
