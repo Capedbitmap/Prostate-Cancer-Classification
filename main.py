@@ -26,6 +26,37 @@ import albumentations as A
 from albumentations.pytorch import ToTensorV2
 import random
 import gc
+import psutil
+import os
+
+# Memory management function
+def cleanup_memory():
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.synchronize()
+
+# Monitor memory usage
+def get_memory_usage():
+    process = psutil.Process(os.getpid())
+    return process.memory_info().rss / 1024 / 1024 / 1024  # GB
+
+import random
+import gc
+import psutil
+import os
+
+# Memory management function
+def cleanup_memory():
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.synchronize()
+
+# Monitor memory usage
+def get_memory_usage():
+    process = psutil.Process(os.getpid())
+    return process.memory_info().rss / 1024 / 1024 / 1024  # GB
 
 try:
     from torch.cuda.amp import autocast, GradScaler
@@ -481,10 +512,14 @@ test_dataset = MultiResolutionDataset(
     get_mask_percentages=True
 )
 
-train_loader = DataLoader(train_dataset, batch_size=2, shuffle=True, num_workers=0)
-test_loader = DataLoader(test_dataset, batch_size=2, shuffle=False, num_workers=0)
+train_loader = DataLoader(train_dataset, batch_size=2, shuffle=True, num_workers=0, pin_memory=False)
+test_loader = DataLoader(test_dataset, batch_size=2, shuffle=False, num_workers=0, pin_memory=False)
+
+print(f"Dataset loaded - Memory usage: {get_memory_usage():.2f} GB")
 
 model = MultiTaskMultiResolutionModel(num_classes=5, num_seg_classes=4, use_transformer=True).to(DEVICE)
+
+print(f"Model created - Memory usage: {get_memory_usage():.2f} GB")
 
 criterion = MultiTaskLoss(alpha=0.4, beta=0.4, gamma=0.2)
 optimizer = optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4)
@@ -499,7 +534,10 @@ def train_epoch(model, loader, optimizer, criterion, scaler=None):
     loss_components = defaultdict(float)
     num_batches = 0
 
-    for batch_data in loader:
+    for batch_idx, batch_data in enumerate(loader):
+        print(f"\n--- Batch {batch_idx} ---")
+        print(f"  Memory at start of batch: {get_memory_usage():.3f} GB")
+
         if len(batch_data) == 4:
             x_low, x_high, multilabels, mask_percentages = batch_data
         else:
@@ -509,26 +547,33 @@ def train_epoch(model, loader, optimizer, criterion, scaler=None):
         x_low = x_low.to(DEVICE)
         x_high = x_high.to(DEVICE)
         multilabels = multilabels.to(DEVICE)
+        print(f"  Memory after moving data to device: {get_memory_usage():.3f} GB")
 
         if mask_percentages is not None:
             mask_percentages = mask_percentages.to(DEVICE)
 
         cribriform_labels = (multilabels[:, 3] > 0).float()
 
-        optimizer.zero_grad()
+        optimizer.zero_grad(set_to_none=True)
 
         if scaler:
             with autocast():
                 outputs = model(x_low, x_high, mask_percentages)
+                print(f"  Memory after forward pass: {get_memory_usage():.3f} GB")
                 loss, loss_dict = criterion(outputs, multilabels, cribriform_labels)
+                print(f"  Memory after loss calculation: {get_memory_usage():.3f} GB")
 
             scaler.scale(loss).backward()
+            print(f"  Memory after backward pass: {get_memory_usage():.3f} GB")
             scaler.step(optimizer)
             scaler.update()
         else:
             outputs = model(x_low, x_high, mask_percentages)
+            print(f"  Memory after forward pass: {get_memory_usage():.3f} GB")
             loss, loss_dict = criterion(outputs, multilabels, cribriform_labels)
+            print(f"  Memory after loss calculation: {get_memory_usage():.3f} GB")
             loss.backward()
+            print(f"  Memory after backward pass: {get_memory_usage():.3f} GB")
             optimizer.step()
 
         total_loss += loss.item()
@@ -536,12 +581,15 @@ def train_epoch(model, loader, optimizer, criterion, scaler=None):
             loss_components[key] += value
         num_batches += 1
 
-        if num_batches % 50 == 0:
-            torch.cuda.empty_cache()
-            gc.collect()
+        cleanup_memory()
+        print(f"  Memory after cleanup: {get_memory_usage():.3f} GB")
 
-    avg_loss = total_loss / num_batches
-    avg_components = {k: v / num_batches for k, v in loss_components.items()}
+        if batch_idx >= 50:
+            print("\nDEBUG: Stopping after 50 batches.")
+            break
+
+    avg_loss = total_loss / num_batches if num_batches > 0 else 0
+    avg_components = {k: v / num_batches for k, v in loss_components.items()} if num_batches > 0 else {}
 
     return avg_loss, avg_components
 
@@ -610,7 +658,12 @@ EPOCHS = 20
 best_cribriform_sens = 0
 best_model_state = None
 
+print(f"Starting training - Initial memory: {get_memory_usage():.2f} GB")
+
 for epoch in range(EPOCHS):
+    print(f"\n=== Epoch {epoch+1}/{EPOCHS} ===")
+    cleanup_memory()  # Clean before each epoch
+    
     train_loss, train_components = train_epoch(model, train_loader, optimizer, criterion, scaler)
     test_loss, test_components, ml_acc, crib_acc, crib_sens = evaluate_model(model, test_loader, criterion)
 
@@ -624,11 +677,16 @@ for epoch in range(EPOCHS):
         print(f"Epoch {epoch+1}/{EPOCHS}")
         print(f"Train Loss: {train_loss:.4f}, Test Loss: {test_loss:.4f}")
         print(f"MultiLabel Acc: {ml_acc:.4f}, Cribriform Acc: {crib_acc:.4f}, Cribriform Sens: {crib_sens:.4f}")
-        torch.cuda.empty_cache()
-        gc.collect()
+        print(f"Memory usage: {get_memory_usage():.2f} GB")
+        
+    cleanup_memory()  # Clean after each epoch
 
-model.load_state_dict(best_model_state)
-torch.save(best_model_state, os.path.join(SAVE_DIR, "best_multitask_model.pth"))
+if best_model_state is not None:
+    model.load_state_dict(best_model_state)
+    torch.save(best_model_state, os.path.join(SAVE_DIR, "best_multitask_model.pth"))
+else:
+    print("Warning: No best model state found, saving current state")
+    torch.save(model.state_dict(), os.path.join(SAVE_DIR, "best_multitask_model.pth"))
 
 class CribrifromSpecializedEnsemble(nn.Module):
     def __init__(self, base_model, cribriform_specialist_model):
