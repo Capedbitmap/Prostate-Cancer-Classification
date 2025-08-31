@@ -1,4 +1,3 @@
-# second version of the code at the top, fixed some issues, see if it works now
 !pip install -q openpyxl gdown timm opencv-python albumentations
 
 import os
@@ -1065,13 +1064,3 @@ with open(os.path.join(SAVE_DIR, "enhanced_results_summary.txt"), "w") as f:
     f.write("VISUALIZATIONS:\n")
     f.write("- multilabel_predictions.png: Sample multi-label predictions\n")
     f.write("- cribriform_misclassifications.png: Analysis of cribriform errors\n")
-
-print("\n=== ENHANCED PIPELINE COMPLETE ===")
-print("Novel contributions successfully implemented:")
-print("✓ Multi-label learning for mixed patterns")
-print("✓ Multi-resolution transformer architecture")
-print("✓ Specialized cribriform detection")
-print("✓ Multi-task joint learning")
-print("✓ Advanced stain normalization")
-print("✓ Memory-optimized training pipeline")
-print("✓ Comprehensive evaluation framework")
