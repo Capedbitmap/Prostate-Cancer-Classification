@@ -1,6 +1,4 @@
 # Prostate Cancer Classification with Multi-Task Learning
-# Enhanced pipeline with multi-label classification and cribriform detection
-# MEMORY OPTIMIZED VERSION - NO QUALITY COMPROMISE
 
 import os
 import sys
@@ -477,7 +475,6 @@ def create_cribriform_labels(df):
 train_crib_labels = create_cribriform_labels(train_cls_df)
 test_crib_labels = create_cribriform_labels(test_cls_df)
 
-# Same high-quality transforms
 train_transform_low = T.Compose([
     T.Resize((224, 224)),
     T.RandomHorizontalFlip(p=0.5),
@@ -510,7 +507,6 @@ test_transform_high = T.Compose([
     T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
 
-# Use memory-efficient dataset
 train_dataset = MemoryEfficientDataset(
     train_cls_df, IMAGES_FOLDER, MASKS_FOLDER,
     transform_low=train_transform_low,
@@ -527,7 +523,6 @@ test_dataset = MemoryEfficientDataset(
     get_mask_percentages=True
 )
 
-# Keep original batch size - memory efficiency comes from other optimizations
 train_loader = DataLoader(train_dataset, batch_size=2, shuffle=True, num_workers=0, pin_memory=False)
 test_loader = DataLoader(test_dataset, batch_size=2, shuffle=False, num_workers=0, pin_memory=False)
 
@@ -685,7 +680,6 @@ def evaluate_model(model, loader, criterion):
 
     return avg_loss, avg_components, multilabel_acc, cribriform_acc, cribriform_sensitivity
 
-# Keep original training parameters - NO COMPROMISE
 EPOCHS = 20
 best_cribriform_sens = 0
 best_model_state = None
@@ -718,9 +712,6 @@ for epoch in range(EPOCHS):
 
 model.load_state_dict(best_model_state)
 torch.save(best_model_state, os.path.join(SAVE_DIR, "best_multitask_model.pth"))
-
-# Continue with the rest of the pipeline exactly as before...
-# [Rest of the code remains identical - specialist training, ensemble, evaluation, etc.]
 
 print("\n=== MEMORY-OPTIMIZED PIPELINE COMPLETE ===")
 print("✓ Full quality maintained")
